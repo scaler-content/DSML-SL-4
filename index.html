@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision Trees 2 post read</title>
+<meta name="description" content="Decision Trees 2 post read: Gini impurity, threshold search, pruning, cross-validated depth tuning, confusion matrix, preprocessing needs, feature importance and regression trees.">
+<style>
+
+:root{
+  --navy:#0A1747;
+  --blue:#254AA5;
+  --blue-700:#1B3A8C;
+  --blue-200:#B9C8F0;
+  --blue-100:#E4EBFB;
+  --blue-50:#F2F5FD;
+  --pink:#EA1A85;
+  --pink-ink:#B0105F;
+  --pink-200:#F8B4D4;
+  --pink-100:#FDE2EF;
+  --pink-50:#FFF3F8;
+  --pink-soft:#FF8DC2;
+  --ink:#101A3F;
+  --muted:#4A5580;
+  --line:#D6DEF2;
+  --bg:#FAFBFF;
+  --card:#FFFFFF;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:"Avenir Next","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--blue-700);text-underline-offset:3px}
+a:hover{color:var(--pink-ink)}
+:focus-visible{outline:3px solid var(--pink);outline-offset:2px;border-radius:4px}
+h1,h2,h3,h4{font-family:var(--serif);color:var(--navy);line-height:1.2;margin:0}
+h2{font-size:clamp(1.7rem,3.4vw,2.3rem);letter-spacing:-.01em;margin-bottom:.6rem}
+h3{font-size:1.35rem;margin:2.2rem 0 .6rem}
+h4{font-size:1.08rem;margin:0 0 .35rem}
+p{margin:0 0 1rem}
+code{font-family:var(--mono);font-size:.88em;background:var(--blue-100);color:var(--blue-700);padding:.1em .4em;border-radius:5px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* progress */
+#progress{position:fixed;inset:0 auto auto 0;height:4px;width:0;background:linear-gradient(90deg,var(--blue),var(--pink));z-index:50}
+
+/* hero */
+.hero{background:var(--navy);color:#fff;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:linear-gradient(90deg,var(--blue) 0 55%,var(--pink) 55% 100%)}
+.hero-in{max-width:1180px;margin:0 auto;padding:72px 24px 88px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:40px;align-items:center}
+.hero h1{color:#fff;font-size:clamp(2.6rem,6.4vw,4.6rem);letter-spacing:-.02em;line-height:1.02;margin:.4rem 0 1.1rem}
+.hero .tag{display:inline-block;background:var(--pink);color:#fff;font-weight:700;font-size:.9rem;padding:.3rem .8rem;border-radius:999px}
+.hero .lede{font-size:1.2rem;color:#DCE4FF;max-width:34rem;margin-bottom:1.6rem}
+.hero .facts{display:flex;flex-wrap:wrap;gap:10px}
+.hero .facts span{border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:.3rem .85rem;font-size:.92rem;color:#EAF0FF}
+.hero-art{width:100%;height:auto}
+@media (max-width:860px){.hero-in{grid-template-columns:1fr;padding:48px 20px 64px}.hero-art{max-width:420px}}
+
+/* layout */
+.layout{max-width:1220px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:minmax(0,1fr);gap:48px}
+@media (min-width:1100px){.layout{grid-template-columns:210px minmax(0,1fr)}}
+.toc{display:none}
+@media (min-width:1100px){
+  .toc{display:block;position:sticky;top:24px;align-self:start;padding-top:56px;max-height:100vh;overflow:auto}
+  .toc p{font-weight:700;color:var(--navy);font-size:.95rem;margin-bottom:.6rem}
+  .toc ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}
+  .toc a{display:block;padding:.3rem 0 .3rem 14px;margin-left:-2px;border-left:2px solid transparent;text-decoration:none;color:var(--muted);font-size:.92rem;line-height:1.35}
+  .toc a:hover{color:var(--blue-700)}
+  .toc a.on{color:var(--pink-ink);border-left-color:var(--pink);font-weight:700}
+}
+main{min-width:0;max-width:820px}
+section{padding:56px 0 8px;border-top:1px solid var(--line)}
+section:first-child{border-top:0}
+.mission{display:inline-block;background:var(--blue-100);color:var(--blue-700);font-weight:700;font-size:.85rem;padding:.2rem .7rem;border-radius:999px;margin-bottom:.7rem}
+.lead{font-size:1.15rem;color:var(--muted)}
+
+/* generic blocks */
+.callout{border-radius:14px;padding:18px 22px;margin:1.4rem 0;border:1px solid var(--line);background:var(--blue-50)}
+.callout.pink{background:var(--pink-50);border-color:var(--pink-200)}
+.callout>:last-child{margin-bottom:0}
+.callout strong.t{display:block;font-family:var(--serif);font-size:1.05rem;color:var(--navy);margin-bottom:.25rem}
+.ticket{position:relative;background:#fff;border:1px solid var(--line);border-left:6px solid var(--pink);border-radius:14px;padding:22px 26px;margin:1.6rem 0;box-shadow:0 10px 30px rgba(10,23,71,.07)}
+.ticket .from{font-weight:700;color:var(--pink-ink);margin-bottom:.4rem;font-size:.95rem}
+.ticket q{quotes:none;font-family:var(--serif);font-size:1.18rem;font-style:italic;color:var(--navy);display:block}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:1.2rem 0}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:1.2rem 0}
+@media (max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
+.tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.tile p{font-size:.97rem;color:var(--muted);margin:0}
+.tile.pink{border-top:4px solid var(--pink)}
+.tile.blue{border-top:4px solid var(--blue)}
+.goals{list-style:none;margin:1rem 0;padding:0;display:grid;gap:10px}
+.goals li{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px 12px 48px;position:relative}
+.goals li::before{content:"";position:absolute;left:16px;top:17px;width:16px;height:16px;background:var(--pink);transform:rotate(45deg);border-radius:3px}
+.kpis{display:flex;flex-wrap:wrap;gap:14px;margin:1.2rem 0}
+.kpi{flex:1 1 150px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+.kpi b{display:block;font-family:var(--serif);font-size:1.9rem;color:var(--blue);line-height:1.1}
+.kpi span{color:var(--muted);font-size:.9rem}
+.kpi.pk b{color:var(--pink-ink)}
+
+/* widget shell */
+.widget{background:#fff;border:1px solid var(--line);border-radius:18px;margin:1.8rem 0;box-shadow:0 12px 34px rgba(10,23,71,.07);overflow:hidden}
+.widget>header{background:var(--navy);color:#fff;padding:12px 20px}
+.widget>header h4{color:#fff;margin:0;font-size:1.05rem}
+.widget>header p{margin:2px 0 0;color:#C9D5FF;font-size:.9rem}
+.wbody{padding:18px 20px}
+.wcap{padding:12px 20px;background:var(--blue-50);border-top:1px solid var(--line);font-size:.93rem;color:var(--muted)}
+.wcap>:last-child{margin-bottom:0}
+.svgwrap{overflow-x:auto}
+.svgwrap svg{display:block;width:100%;height:auto;min-width:560px}
+.ctrl{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;margin:10px 0}
+.ctrl label{display:flex;flex-direction:column;font-weight:600;font-size:.92rem;color:var(--navy);gap:4px;flex:1 1 220px}
+.ctrl input[type=range]{width:100%;accent-color:var(--pink)}
+.ctrl input[type=number]{width:100%;font:inherit;padding:.4rem .6rem;border:1px solid var(--blue-200);border-radius:8px;color:var(--ink);background:#fff}
+button.btn{font:inherit;font-weight:700;font-size:.92rem;background:var(--blue);color:#fff;border:2px solid var(--blue);border-radius:10px;padding:.45rem .95rem;cursor:pointer}
+button.btn:hover{background:var(--blue-700);border-color:var(--blue-700)}
+button.btn.alt{background:#fff;color:var(--blue-700)}
+button.btn.alt:hover{background:var(--blue-100)}
+button.btn.pk{background:var(--pink);border-color:var(--pink)}
+button.btn.pk:hover{background:var(--pink-ink);border-color:var(--pink-ink)}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.readout{font-weight:700;color:var(--navy);background:var(--blue-50);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+.readout .pk{color:var(--pink-ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.9rem;color:var(--muted);margin:6px 0}
+.legend i{display:inline-block;vertical-align:-2px;margin-right:6px}
+.sw-l{width:13px;height:13px;background:var(--pink);transform:rotate(45deg);border-radius:2px}
+.sw-s{width:14px;height:14px;background:var(--blue);border-radius:50%}
+
+/* math + code */
+.formula{font-family:var(--serif);font-size:1.25rem;text-align:center;background:var(--pink-50);border:1px solid var(--pink-200);border-radius:14px;padding:16px 12px;margin:1.2rem 0;overflow-x:auto;color:var(--navy)}
+.formula i{font-style:italic}
+pre.code{background:var(--navy);color:#EAF0FF;border-radius:12px;padding:16px 18px;margin:1rem 0 0;overflow-x:auto;font-family:var(--mono);font-size:.84rem;line-height:1.6;border-left:5px solid var(--pink)}
+pre.out{background:var(--blue-50);color:var(--ink);border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;margin:0 0 1.2rem;padding:12px 18px;overflow-x:auto;font-family:var(--mono);font-size:.84rem;line-height:1.55}
+pre.code + pre.out{margin-top:-4px}
+pre.code:not(:has(+ pre.out)){margin-bottom:1.2rem}
+.cmt{color:#9DB2F5}
+.kw{color:var(--pink-soft)}
+
+/* tables */
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:.8rem 0;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th{background:var(--blue);color:#fff;text-align:left;padding:8px 12px;white-space:nowrap;font-weight:600}
+td{padding:8px 12px;border-top:1px solid var(--line);white-space:nowrap}
+td.tgt{font-weight:700;color:var(--pink-ink)}
+td.ell{color:var(--muted);text-align:center}
+tr:nth-child(even) td{background:var(--blue-50)}
+
+/* tabs */
+.tabs [role=tablist]{display:flex;flex-wrap:wrap;gap:6px;border-bottom:2px solid var(--line);margin-bottom:14px}
+.tabs [role=tab]{font:inherit;font-weight:700;font-size:.95rem;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:.5rem .9rem;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0}
+.tabs [role=tab]:hover{color:var(--blue-700)}
+.tabs [role=tab][aria-selected=true]{color:var(--pink-ink);border-bottom-color:var(--pink)}
+.tabs [role=tabpanel][hidden]{display:none}
+
+/* pictogram */
+.picto{display:grid;grid-template-columns:repeat(20,1fr);gap:5px;max-width:560px;margin:10px 0}
+.picto b{aspect-ratio:1;background:var(--blue);border-radius:50%;display:block}
+.picto b.l{background:var(--pink);border-radius:3px;transform:rotate(45deg) scale(.8)}
+.stack{display:flex;height:46px;border-radius:10px;overflow:hidden;border:1px solid var(--line);font-weight:700;color:#fff;margin:10px 0}
+.stack div{display:flex;align-items:center;justify-content:center;font-size:.9rem;white-space:nowrap;overflow:hidden;transition:width .3s}
+.stack .s{background:var(--blue)}
+.stack .l{background:var(--pink-ink)}
+
+/* jar */
+.labgrid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.labgrid{grid-template-columns:1fr}}
+.jar{width:190px;margin:0 auto;padding:16px 14px 14px;border:4px solid var(--blue-200);border-top-width:8px;border-radius:14px 14px 48px 48px;background:linear-gradient(#fff,var(--blue-50));display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.ball{aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:#fff}
+.ball.r{background:var(--pink-ink)}
+.ball.b{background:var(--blue)}
+
+/* tree explorer */
+.explore{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.steps{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.dots{display:flex;gap:6px}
+.dots button{font:inherit;font-size:.85rem;font-weight:700;border:2px solid var(--blue-200);background:#fff;color:var(--blue-700);border-radius:999px;padding:.25rem .8rem;cursor:pointer}
+.dots button[aria-pressed=true]{background:var(--pink);border-color:var(--pink);color:#fff}
+.node{cursor:pointer}
+.node rect{transition:stroke-width .15s}
+.node:hover rect,.node:focus rect{stroke-width:4}
+.node.sel rect{stroke-width:4;stroke:var(--pink)!important}
+dl.det{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0;font-size:.95rem}
+dl.det dt{color:var(--muted);font-weight:600}
+dl.det dd{margin:0;font-weight:700;color:var(--navy)}
+.tag-pure{background:var(--pink-100);color:var(--pink-ink);border-radius:999px;padding:.05rem .6rem;font-size:.82rem}
+
+/* gain bars */
+.gbars{display:flex;align-items:flex-end;gap:8px;height:190px;padding:22px 4px 0;overflow-x:auto;border-bottom:2px solid var(--line)}
+.gb{flex:1 0 54px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:var(--ink)}
+.gb .v{font-size:.78rem;font-weight:700;margin-bottom:3px}
+.gb .bar{width:70%;background:var(--blue-200);border-radius:8px 8px 0 0;min-height:2px;transition:height .25s}
+.gb[aria-pressed=true] .bar{background:var(--blue)}
+.gb.best .bar{background:var(--pink)}
+.gb[aria-pressed=true]{background:var(--blue-50);border-radius:8px}
+.glabels{display:flex;gap:8px;padding:6px 4px 0;overflow-x:auto}
+.glabels span{flex:1 0 54px;text-align:center;font-size:.78rem;color:var(--muted);line-height:1.2}
+.gwrap{overflow-x:auto}
+.gwrap>*{min-width:640px}
+table.calc td,table.calc th{white-space:normal}
+table.calc td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* horizontal bars */
+.hb{display:grid;grid-template-columns:130px minmax(0,1fr) 60px;gap:10px;align-items:center;margin:8px 0;font-size:.95rem}
+.hb .trk{height:26px;background:var(--blue-50);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.hb .fill{height:100%;background:var(--blue);border-radius:0 6px 6px 0}
+.hb .fill.pk{background:var(--pink)}
+.hb b{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:520px){.hb{grid-template-columns:90px minmax(0,1fr) 50px;font-size:.85rem}}
+
+/* quiz */
+.quiz{background:#fff;border:2px solid var(--blue-200);border-radius:16px;padding:18px 22px;margin:2rem 0}
+.quiz .qtag{display:inline-block;background:var(--pink);color:#fff;font-weight:700;font-size:.82rem;padding:.15rem .65rem;border-radius:999px;margin-bottom:.5rem}
+.quiz fieldset{border:0;padding:0;margin:0}
+.quiz legend{font-family:var(--serif);font-size:1.15rem;color:var(--navy);padding:0;margin-bottom:.6rem}
+.quiz ul.st{margin:.2rem 0 .8rem;padding-left:1.2rem}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;cursor:pointer;background:#fff}
+.opt:hover{background:var(--blue-50)}
+.opt input{margin-top:.35rem;accent-color:var(--pink)}
+.opt.ok{border-color:var(--blue);background:var(--blue-100)}
+.opt.no{border-color:var(--pink);background:var(--pink-50)}
+.fb{margin-top:12px;padding:12px 14px;border-radius:10px;font-size:.96rem}
+.fb.ok{background:var(--blue-100);border-left:5px solid var(--blue)}
+.fb.no{background:var(--pink-50);border-left:5px solid var(--pink)}
+.fb:empty{display:none}
+
+/* accordion */
+details{background:#fff;border:1px solid var(--line);border-radius:12px;margin:10px 0;padding:0 18px}
+details summary{cursor:pointer;font-weight:700;color:var(--navy);padding:14px 0;list-style:none;display:flex;gap:10px;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"+";display:inline-flex;width:24px;height:24px;flex:none;align-items:center;justify-content:center;background:var(--blue-100);color:var(--blue-700);border-radius:50%;font-weight:800}
+details[open] summary::before{content:"−";background:var(--pink);color:#fff}
+details[open]{border-color:var(--blue-200)}
+details .dbody{padding:0 0 14px}
+details .dbody>:last-child{margin-bottom:0}
+
+/* prompt cards */
+.prompt{background:var(--blue-50);border:1px dashed var(--blue-200);border-radius:12px;padding:12px 14px;margin:.6rem 0;font-family:var(--serif);font-style:italic;color:var(--navy)}
+.copyb{margin-top:8px}
+
+/* wrap up */
+ol.take{list-style:none;counter-reset:t;margin:1rem 0;padding:0;display:grid;gap:10px}
+ol.take li{counter-increment:t;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px 12px 60px;position:relative}
+ol.take li::before{content:counter(t);position:absolute;left:14px;top:10px;width:34px;height:34px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+ol.take li:nth-child(3n)::before{background:var(--pink)}
+.next{background:var(--navy);color:#fff;border-radius:16px;padding:22px 26px;margin:1.6rem 0}
+.next h3{color:#fff;margin:0 0 .5rem}
+.next p{color:#DCE4FF;margin:0}
+footer{margin-top:72px;background:var(--navy);color:#fff;text-align:center;padding:34px 20px;border-top:6px solid var(--pink)}
+footer strong{font-family:var(--serif);font-size:1.3rem}
+
+.frow{display:grid;grid-template-columns:76px repeat(10,minmax(0,1fr));gap:4px;align-items:center;font-size:.8rem;color:var(--muted);padding:3px 4px;border-radius:8px}
+.frow.on{outline:2px solid var(--navy);background:var(--blue-50)}
+.frow .c{height:22px;border-radius:5px;background:var(--blue-200)}
+.frow .c.v{background:var(--pink)}
+.cm{display:grid;grid-template-columns:96px minmax(0,1fr) minmax(0,1fr);gap:8px;max-width:560px;margin:12px auto;align-items:stretch}
+.cm .h{font-weight:700;color:var(--navy);font-size:.88rem;display:flex;align-items:center;justify-content:center;text-align:center}
+.cm button{font:inherit;border:2px solid var(--blue-200);background:#fff;border-radius:12px;padding:16px 8px;cursor:pointer;color:var(--navy);font-weight:700}
+.cm button small{display:block;font-weight:500;color:var(--muted)}
+.cm button[aria-pressed=true]{border-color:var(--navy);background:var(--blue-50)}
+.cm button.fn{border-color:var(--pink);background:var(--pink-50)}
+.cm button.fn[aria-pressed=true]{border-color:var(--navy)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;align-items:center}
+.chip{border:2px solid var(--blue);border-radius:10px;padding:2px 9px;font-weight:700;font-size:.92rem;background:#fff;color:var(--navy);font-variant-numeric:tabular-nums}
+.chip.l{border-color:var(--pink);background:var(--pink-50)}
+.cut{width:4px;align-self:stretch;background:var(--navy);border-radius:2px;min-height:28px}
+.seg{display:inline-flex;border:2px solid var(--blue-200);border-radius:10px;overflow:hidden}
+.seg button{font:inherit;font-weight:700;font-size:.9rem;border:0;background:#fff;color:var(--blue-700);padding:.4rem .9rem;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--blue);color:#fff}
+.tw{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;margin:6px 0}
+.tw>div>b{display:block;font-size:.85rem;color:var(--muted);margin-bottom:3px}
+</style>
+</head>
+<body>
+<div id="progress" aria-hidden="true"></div>
+
+<header class="hero">
+  <div class="hero-in">
+    <div>
+      <span class="tag">Ticket #4 from HR and Product</span>
+      <h1>Decision Trees 2 post read</h1>
+      <p class="lede">Growing it right: how to stop a tree from memorising employees, tune it with cross-validation, and teach the same idea to predict a number.</p>
+      <div class="facts">
+        <span>Gini impurity</span>
+        <span>Pruning and depth tuning</span>
+        <span>Confusion matrix</span>
+        <span>Regression trees</span>
+      </div>
+    </div>
+    <svg class="hero-art" viewBox="0 0 400 300" role="img" aria-label="Decorative staircase-shaped prediction line over scattered points">
+      <rect x="10" y="10" width="380" height="280" rx="16" fill="#12225F" stroke="#3450A8" stroke-width="2"/>
+      <path d="M30 240H120V190H200V120H290V70H370" fill="none" stroke="#EA1A85" stroke-width="5" stroke-linejoin="round"/>
+      <g fill="#8FB0FF" stroke="#0A1747" stroke-width="2">
+        <circle cx="50" cy="228" r="9"/><circle cx="85" cy="250" r="9"/><circle cx="110" cy="215" r="9"/><circle cx="150" cy="200" r="9"/><circle cx="185" cy="180" r="9"/><circle cx="230" cy="130" r="9"/><circle cx="265" cy="110" r="9"/><circle cx="310" cy="80" r="9"/><circle cx="345" cy="60" r="9"/><circle cx="330" cy="95" r="9"/>
+      </g>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Sections">
+    <p>On this page</p>
+    <ol>
+      <li><a href="#intro">The ticket</a></li>
+      <li><a href="#gini">A faster impurity</a></li>
+      <li><a href="#threshold">Numerical splits</a></li>
+      <li><a href="#depth">Why depth overfits</a></li>
+      <li><a href="#tune">Tuning properly</a></li>
+      <li><a href="#matrix">Confusion matrix</a></li>
+      <li><a href="#needs">What trees need</a></li>
+      <li><a href="#importance">Feature importance</a></li>
+      <li><a href="#regression">Regression trees</a></li>
+      <li><a href="#explore">Explore further</a></li>
+      <li><a href="#wrap">Wrap up</a></li>
+    </ol>
+  </nav>
+
+<main id="main">
+
+<!-- ================= INTRO ================= -->
+<section id="intro">
+  <h2>Continuing the story: Orbit Express</h2>
+  <div class="ticket">
+    <div class="from">Ticket #4, from the Head of HR</div>
+    <q>“The tree you built finds real patterns, but it also memorises individual employees. Before this goes anywhere near production, I need a tree that generalises. Also, the Product team heard about this and has a side question: can the same idea predict a number, not just Yes/No? They want to know if trees can help forecast things like delivery time later on.”</q>
+  </div>
+
+  <h3>What you will be able to do</h3>
+  <ul class="goals">
+    <li>Compute Gini impurity as a faster alternative to entropy, and explain when the two disagree.</li>
+    <li>Explain how a decision tree finds a split threshold for a numerical feature, and why binning helps at scale.</li>
+    <li>Explain why deeper trees overfit and shallow trees underfit, and what pruning means.</li>
+    <li>Tune a decision tree’s depth properly using cross-validation, instead of guessing.</li>
+    <li>Read a confusion matrix and connect false negatives to business cost.</li>
+    <li>Know which preprocessing steps a decision tree actually needs, and which it does not.</li>
+    <li>Read feature importance from a trained tree.</li>
+    <li>Explain how a decision tree adapts to regression problems.</li>
+  </ul>
+
+  <h3>Quick setup: reloading where we left off</h3>
+  <p>This lesson continues from Class 3, so we reload the same preprocessed attrition data.</p>
+<pre class="code"><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">import</span> pickle
+
+X_train = pd.read_pickle(<span class="cmt">'preprocessed_X_sm.pickle'</span>)
+X_test  = pd.read_pickle(<span class="cmt">'X_test.pickle'</span>)
+y_train = pd.read_pickle(<span class="cmt">'y_sm.pickle'</span>)
+y_test  = pd.read_pickle(<span class="cmt">'y_test.pickle'</span>)
+
+print(<span class="cmt">'Train:'</span>, X_train.shape)
+print(<span class="cmt">'Test :'</span>, X_test.shape)</pre>
+<pre class="out">Train: (1848, 36)
+Test : (368, 36)</pre>
+</section>
+
+<!-- ================= GINI ================= -->
+<section id="gini">
+  <span class="mission">Mission 1</span>
+  <h2>A faster way to measure impurity</h2>
+  <p>Entropy works well, but computing log<sub>2</sub> for every candidate split, at every node, on a large dataset adds up. <strong>Gini impurity</strong> measures the same idea, the impurity of a node, without needing a logarithm at all.</p>
+  <div class="formula" role="math" aria-label="Gini equals one minus the sum over i of p sub i squared">Gini = 1 − Σ<sub><i>i</i></sub> <i>p<sub>i</sub></i><sup>2</sup></div>
+  <p>For a binary outcome with proportion <em>p</em> for one class:</p>
+  <div class="formula" role="math" aria-label="Gini equals one minus p squared minus open bracket one minus p close bracket squared">Gini = 1 − <i>p</i><sup>2</sup> − (1 − <i>p</i>)<sup>2</sup></div>
+  <p>Like entropy, Gini is 0 for a pure node and highest for an even 50-50 mix, just on a slightly different scale: its maximum is 0.5, not 1.</p>
+
+  <div data-quiz="q1"></div>
+
+  <div class="widget"><header><h4>Entropy and Gini side by side</h4><p>Drag the slider to change the class proportion.</p></header><div class="wbody" id="lab"></div>
+    <div class="wcap">Both curves peak at <em>p</em> = 0.5 and touch zero at the two ends. They rarely disagree on which split is best in practice, which is why <code>DecisionTreeClassifier</code> uses Gini as its default criterion, purely for speed.</div></div>
+
+  <div class="widget">
+    <header><h4>Node impurity calculator</h4><p>Enter class counts for a node.</p></header>
+    <div class="wbody">
+      <div class="ctrl">
+        <label>Class A count <input type="number" id="gA" min="0" step="1" value="60"></label>
+        <label>Class B count <input type="number" id="gB" min="0" step="1" value="40"></label>
+      </div>
+      <div class="readout" id="gcOut" aria-live="polite"></div>
+    </div>
+  </div>
+
+<pre class="code"><span class="kw">def</span> entropy(p):
+    <span class="kw">if</span> p == 0 <span class="kw">or</span> p == 1:
+        <span class="kw">return</span> 0.0
+    <span class="kw">return</span> -p * np.log2(p) - (1 - p) * np.log2(1 - p)
+
+<span class="kw">def</span> gini(p):
+    <span class="kw">return</span> 1 - p**2 - (1 - p)**2
+
+p_values = np.linspace(0.001, 0.999, 200)
+
+plt.plot(p_values, [entropy(p) <span class="kw">for</span> p <span class="kw">in</span> p_values], label=<span class="cmt">'Entropy'</span>)
+plt.plot(p_values, [gini(p) <span class="kw">for</span> p <span class="kw">in</span> p_values], label=<span class="cmt">'Gini impurity'</span>)
+plt.xlabel(<span class="cmt">'P(class = 1)'</span>)
+plt.ylabel(<span class="cmt">'Impurity'</span>)
+plt.title(<span class="cmt">'Entropy vs Gini impurity'</span>)
+plt.axvline(0.5, linestyle=<span class="cmt">'--'</span>, color=<span class="cmt">'gray'</span>)
+plt.legend()
+plt.show()</pre>
+</section>
+
+<!-- ================= THRESHOLD ================= -->
+<section id="threshold">
+  <span class="mission">Mission 2</span>
+  <h2>Splitting on numerical features</h2>
+  <p>Our attrition data has both categorical features (already one-hot encoded for us) and numerical ones, like <code>Age</code> and <code>MonthlyIncome</code>. For a categorical feature, a tree splits on distinct categories. For a <strong>numerical</strong> feature, it needs a <strong>threshold</strong>.</p>
+
+  <h3>How is the threshold chosen?</h3>
+  <div class="grid2">
+    <div class="tile blue"><h4>1. Sort</h4><p>Sort the feature’s values in increasing order.</p></div>
+    <div class="tile blue"><h4>2. Try each candidate</h4><p>Use each value as a candidate threshold, splitting the data into “less than” and “greater than or equal to”.</p></div>
+    <div class="tile blue"><h4>3. Score each split</h4><p>Calculate the information gain for each candidate split.</p></div>
+    <div class="tile pink"><h4>4. Keep the best</h4><p>Pick the threshold that gives the maximum information gain.</p></div>
+  </div>
+  <p>If two different features happen to give exactly equal information gain, there is no way to know for certain which is truly better, so the tree simply picks one at random.</p>
+
+  <div class="widget">
+    <header><h4>Threshold search on a twelve-employee Age example</h4><p>Slide through the candidate thresholds. Switch between testing every midpoint and testing only bin edges.</p></header>
+    <div class="wbody">
+      <div class="tw">
+        <div><b>Candidates to test</b><div class="seg" role="group" aria-label="Candidate mode"><button type="button" id="mAll" aria-pressed="true">Every midpoint</button><button type="button" id="mBin" aria-pressed="false">Bin edges only</button></div></div>
+        <div><b>Age scale</b><div class="seg" role="group" aria-label="Age scale"><button type="button" id="sRaw" aria-pressed="true">Raw years</button><button type="button" id="sStd" aria-pressed="false">Standardised</button></div></div>
+      </div>
+      <div class="chips" id="thChips" role="img" aria-label="Employees sorted by age"></div>
+      <div class="legend"><span><i class="sw-l"></i>Left</span><span><i class="sw-s"></i>Stayed</span><span>The dark bar shows the current cut.</span></div>
+      <div class="ctrl"><label>Candidate threshold <input type="range" id="thSlide" min="0" max="10" step="1" value="0"></label></div>
+      <div class="readout" id="thOut" aria-live="polite"></div>
+      <div class="svgwrap"><svg id="thSvg" role="img" aria-label="Information gain for each candidate age threshold"></svg></div>
+    </div>
+    <div class="wcap" id="thCap"></div>
+  </div>
+
+<pre class="code"><span class="cmt"># A small toy example: Age vs Attrition, to see threshold search directly</span>
+toy_age = np.array([22, 23, 24, 25, 27, 30, 33, 36, 40, 44, 48, 52])
+toy_attrition = np.array([1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0])
+
+parent_entropy = entropy(toy_attrition.mean())
+
+<span class="cmt"># Candidate thresholds: midpoints between consecutive sorted ages</span>
+candidates = (toy_age[:-1] + toy_age[1:]) / 2
+
+gains = []
+<span class="kw">for</span> t <span class="kw">in</span> candidates:
+    left = toy_attrition[toy_age &lt; t]
+    right = toy_attrition[toy_age &gt;= t]
+    weighted = (len(left)/len(toy_attrition)) * entropy(left.mean()) + \
+               (len(right)/len(toy_attrition)) * entropy(right.mean())
+    gains.append(parent_entropy - weighted)
+
+best_threshold = candidates[np.argmax(gains)]</pre>
+
+  <div class="callout pink">
+    <strong class="t">What to notice</strong>
+    <p>Every single candidate threshold needed its own entropy calculation. Now imagine a feature with 1,000 distinct values, at every node, for every feature, while building the whole tree. This gets expensive fast.</p>
+  </div>
+
+  <h3>A cheaper alternative: binning</h3>
+  <p>Instead of testing every unique value, group the feature into ranges first. For example, instead of testing every possible <code>Age</code> value, we could bin ages into groups: [20, 30), [30, 40), [40, 50), [50, 60]. The tree then only has a handful of boundaries to test, at the cost of some precision in where exactly the split falls. The widget above lets you see that trade-off: switch to bin edges and compare the best gain you can reach.</p>
+</section>
+
+<!-- ================= DEPTH ================= -->
+<section id="depth">
+  <span class="mission">Mission 3</span>
+  <h2>Why deeper trees overfit</h2>
+  <p>Recall from Class 3: our first tree scored 1.0 on training data and about 0.76 on test data. That gap is overfitting.</p>
+
+  <h3>Why does this happen as depth increases?</h3>
+  <p>Imagine 1,000 employees at the root node. Every split divides the data further. By the time we are several levels deep, a leaf might contain only a handful of employees, some of which are just noise or outliers rather than a genuine pattern. The tree ends up drawing a rule around a few odd points instead of a real trend. If every leaf is allowed to become pure, training accuracy hits 100%, but the tree has essentially memorised the training set.</p>
+
+  <h3>And if the tree is too shallow?</h3>
+  <p>Say we stop growing at depth 2. Many employees who left and many who stayed will still be mixed together in the same leaf, since 2 levels is rarely enough to separate them cleanly. A lot of “stayed” employees might get bucketed with “left” employees, and vice versa. This is <strong>underfitting</strong>: the tree is too simple to capture the real pattern.</p>
+
+  <div class="grid2">
+    <div class="tile blue">
+      <h4>Shallow tree</h4>
+      <p>Fewer splits, so fewer axis-parallel cuts through the data. <strong>More bias, less variance.</strong></p>
+    </div>
+    <div class="tile pink">
+      <h4>Very deep tree</h4>
+      <p>Many cuts through the data. <strong>Less bias, more variance.</strong></p>
+    </div>
+  </div>
+  <p>This is the same bias-variance idea from Class 2, now controlled by tree depth instead of k.</p>
+
+  <h3>Pruning</h3>
+  <p>Stopping a tree from growing all the way to pure leaves is called <strong>pruning</strong>. It is the standard fix for a tree that overfits.</p>
+  <div data-quiz="q2"></div>
+</section>
+
+<!-- ================= TUNE ================= -->
+<section id="tune">
+  <span class="mission">Mission 4</span>
+  <h2>Tuning the tree properly</h2>
+  <p><code>DecisionTreeClassifier</code> exposes several hyperparameters that all control, in different ways, how much the tree is allowed to grow. See the <a href="https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html" target="_blank" rel="noopener">scikit-learn documentation</a> for the full list.</p>
+  <div class="tblwrap"><table>
+    <caption class="sr-only">Key DecisionTreeClassifier hyperparameters, what they control, and their defaults</caption>
+    <thead><tr><th>Hyperparameter</th><th>What it controls</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>criterion</code></td><td style="white-space:normal">Which impurity measure to use (gini or entropy)</td><td><code>'gini'</code></td></tr>
+      <tr><td><code>max_depth</code></td><td style="white-space:normal">Maximum depth the tree can grow to</td><td><code>None</code> (grows until leaves are pure)</td></tr>
+      <tr><td><code>min_samples_split</code></td><td style="white-space:normal">Minimum number of datapoints required to split a node further</td><td>2</td></tr>
+      <tr><td><code>min_samples_leaf</code></td><td style="white-space:normal">Minimum number of samples a leaf node must have</td><td>1</td></tr>
+      <tr><td><code>max_leaf_nodes</code></td><td style="white-space:normal">Maximum number of leaf nodes the tree can have</td><td><code>None</code></td></tr>
+      <tr><td><code>max_features</code></td><td style="white-space:normal">Number of features considered when looking for the best split</td><td>all features</td></tr>
+      <tr><td><code>class_weight</code></td><td style="white-space:normal">Assigns weights to classes during training</td><td><code>None</code></td></tr>
+    </tbody></table></div>
+  <p>These are all ways of stopping the tree before it grows all the way to pure leaves, which is exactly the pruning idea from Mission 3.</p>
+  <div data-quiz="q3"></div>
+
+  <h3>Choosing depth with cross-validation, not guesswork</h3>
+  <p>Rather than pick one train/validation split and eyeball it, we use <strong>k-fold cross-validation</strong>: split the training data into k folds, train on k−1 of them and validate on the remaining one, k times over, then average the results. This gives a more reliable picture of how each depth actually generalises.</p>
+
+  <div class="widget">
+    <header><h4>10-fold cross-validation</h4><p>Each row is one round. Choose a round to see which fold is held out.</p></header>
+    <div class="wbody">
+      <div class="ctrl"><label>Round <input type="range" id="foldSlide" min="1" max="10" step="1" value="1"></label></div>
+      <div class="folds" id="folds" role="img" aria-label="Ten rounds of cross-validation; in each round one fold is held out for validation"></div>
+      <div class="legend"><span><i class="sw-s"></i>Train folds</span><span><i style="width:14px;height:14px;background:var(--pink);border-radius:3px"></i>Validation fold</span></div>
+      <div class="readout" id="foldOut" aria-live="polite"></div>
+    </div>
+    <div class="wcap">After ten rounds, the ten validation scores are averaged, and so are the ten training scores.</div>
+  </div>
+
+<pre class="code"><span class="kw">from</span> sklearn.tree <span class="kw">import</span> DecisionTreeClassifier
+<span class="kw">from</span> sklearn.model_selection <span class="kw">import</span> KFold, cross_validate
+
+kfold = KFold(n_splits=10, shuffle=True, random_state=7)
+depths = [3, 4, 5, 6, 9, 11, 13, 15]
+
+mean_train_acc = []
+mean_val_acc = []
+
+<span class="kw">for</span> depth <span class="kw">in</span> depths:
+    tree_clf = DecisionTreeClassifier(random_state=7, max_depth=depth)
+    cv_results = cross_validate(tree_clf, X_train, y_train, cv=kfold,
+                                 scoring=<span class="cmt">'accuracy'</span>, return_train_score=True)
+    mean_train_acc.append(cv_results[<span class="cmt">'train_score'</span>].mean())
+    mean_val_acc.append(cv_results[<span class="cmt">'test_score'</span>].mean())
+
+best_depth = depths[np.argmax(mean_val_acc)]</pre>
+<pre class="out">depth= 3  train=0.784  validation=0.765
+depth= 4  train=0.832  validation=0.802
+depth= 5  train=0.873  validation=0.829
+depth= 6  train=0.904  validation=0.844
+depth= 9  train=0.975  validation=0.843
+depth=11  train=0.993  validation=0.835
+depth=13  train=0.999  validation=0.831
+depth=15  train=1.000  validation=0.832</pre>
+
+  <div class="widget">
+    <header><h4>Train versus validation accuracy by depth</h4><p>Move the slider across the depths that were tried.</p></header>
+    <div class="wbody" id="cv1"></div>
+    <div class="wcap">Training accuracy keeps climbing all the way to 1.000, even after validation accuracy has stopped improving and starts drifting down. The highest validation accuracy is at depth 6 (0.844), so that is the depth we choose.</div>
+  </div>
+
+  <h3>Fitting and visualising the tuned tree</h3>
+<pre class="code">tree_clf = DecisionTreeClassifier(random_state=7, max_depth=best_depth)
+tree_clf.fit(X_train, y_train)
+pred = tree_clf.predict(X_test)
+
+print(<span class="cmt">'Test accuracy:'</span>, round(tree_clf.score(X_test, y_test), 3))
+
+<span class="kw">from</span> sklearn.tree <span class="kw">import</span> plot_tree
+
+plt.figure(figsize=(16, 8))
+plot_tree(tree_clf, filled=True, feature_names=X_train.columns, fontsize=8)
+plt.title(f<span class="cmt">'Tuned tree (max_depth={best_depth})'</span>)
+plt.show()</pre>
+<pre class="out">Test accuracy: 0.812</pre>
+
+  <div class="widget">
+    <header><h4>Test accuracy: fully grown tree versus tuned tree</h4></header>
+    <div class="wbody">
+      <div class="hb"><span>Class 3 tree</span><div class="trk"><div class="fill" style="width:76%"></div></div><b>≈ 0.76</b></div>
+      <div class="hb"><span>Tuned tree</span><div class="trk"><div class="fill pk" style="width:81.2%"></div></div><b>0.812</b></div>
+    </div>
+    <div class="wcap">Compared to Class 3’s fully grown tree, this one is neither too shallow nor too deep. The leaves are no longer all pure, which means the tree has stopped drawing rules around individual employees, so its variance is lower than before.</div>
+  </div>
+</section>
+
+<!-- ================= MATRIX ================= -->
+<section id="matrix">
+  <h2>Reading the confusion matrix</h2>
+  <p>Accuracy hides which mistakes the tree makes. A confusion matrix splits the test results into four outcomes.</p>
+<pre class="code"><span class="kw">from</span> sklearn.metrics <span class="kw">import</span> confusion_matrix
+<span class="kw">import</span> seaborn <span class="kw">as</span> sns
+
+cnf_matrix = confusion_matrix(y_test, pred)
+
+sns.heatmap(pd.DataFrame(cnf_matrix), annot=<span class="kw">True</span>, cmap=<span class="cmt">'YlGnBu'</span>, fmt=<span class="cmt">'g'</span>)
+plt.title(<span class="cmt">'Confusion Matrix'</span>)
+plt.ylabel(<span class="cmt">'Actual label'</span>)
+plt.xlabel(<span class="cmt">'Predicted label'</span>)
+plt.show()</pre>
+
+  <div class="widget">
+    <header><h4>Anatomy of the matrix</h4><p>Select a cell to see what it means for attrition. Class 1 means the employee left.</p></header>
+    <div class="wbody">
+      <div class="cm" role="group" aria-label="Confusion matrix cells">
+        <div></div><div class="h">Predicted: stayed (0)</div><div class="h">Predicted: left (1)</div>
+        <div class="h">Actual: stayed (0)</div>
+        <button type="button" data-cm="tn" aria-pressed="true">True negative<small>Stayed, predicted stayed</small></button>
+        <button type="button" data-cm="fp" aria-pressed="false">False positive<small>Stayed, predicted left</small></button>
+        <div class="h">Actual: left (1)</div>
+        <button type="button" data-cm="fn" class="fn" aria-pressed="false">False negative<small>Left, predicted stayed</small></button>
+        <button type="button" data-cm="tp" aria-pressed="false">True positive<small>Left, predicted left</small></button>
+      </div>
+      <div class="readout" id="cmOut" aria-live="polite"></div>
+    </div>
+    <div class="wcap">The counts in your own matrix come from running the cell on the 368 test employees. Read it for two things: how well the model classifies employees who actually stayed (class 0), and how large the false negative count is.</div>
+  </div>
+
+  <div class="callout pink">
+    <strong class="t">Connecting errors to business cost</strong>
+    <p>Recall Ticket #3: every exit costs HR a counter-offer negotiation, a replacement hired at a higher rate, training, and recruiting. A false negative is a departure the model did not see coming. Ask whether HR would rather catch more true departures, even at the cost of a few more false alarms.</p>
+  </div>
+  <div data-quiz="q4"></div>
+</section>
+
+<!-- ================= NEEDS ================= -->
+<section id="needs">
+  <span class="mission">Mission 5</span>
+  <h2>What decision trees do and do not need</h2>
+  <details open>
+    <summary>Does a decision tree need scaled features?</summary>
+    <div class="dbody">
+      <p><strong>No.</strong> A tree only cares about the <strong>order</strong> of values, since it searches for a threshold like “Age &lt; 35”. Standardising <code>Age</code> changes its scale, but not the order of employees by age, so the chosen threshold and the resulting impurity are unaffected. This is different from kNN, where scale directly changed distances.</p>
+      <p>You can check this yourself: flip the <em>Age scale</em> switch in the threshold widget in Mission 2. The values change, the sorted order does not, and neither does the gain at any split.</p>
+    </div>
+  </details>
+  <details>
+    <summary>Encoding categorical features</summary>
+    <div class="dbody">
+      <p>Suppose a <code>Zipcode</code> feature has 10,000 distinct categories. One-hot encoding it would create 10,000 child branches, each with very few employees, which quickly hurts prediction quality. It is the same curse-of-dimensionality problem from Class 2, in a different guise.</p>
+      <p><strong>Target encoding</strong> converts each category to a single numeric value, avoids that dimensionality explosion, and is usually the better choice for high-cardinality categorical features in a tree.</p>
+    </div>
+  </details>
+  <details>
+    <summary>High-dimensional data</summary>
+    <div class="dbody">
+      <p>With many features, the tree has to check every possible split, on every feature, at every node. More features means more splits to test, which means longer build times. This is a real cost, distinct from the curse of dimensionality we saw affecting distance in kNN.</p>
+    </div>
+  </details>
+  <details>
+    <summary>Imbalanced data</summary>
+    <div class="dbody">
+      <p>Since a tree tries to minimise impurity (or maximise information gain), it can end up prioritising the majority class: correctly classifying more of the majority class reduces impurity more than getting a few minority-class points right. This is exactly why we balanced the training set with SMOTE before training, back in Class 1’s data preparation habit.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ================= IMPORTANCE ================= -->
+<section id="importance">
+  <h2>Feature importance</h2>
+  <p>How do we know which features the tree is actually relying on? For each feature, we add up the information gain it contributed, weighted by how many datapoints passed through the nodes where it was used, across the whole tree. This is called <strong>normalized information gain</strong>, and it is what scikit-learn reports as <code>feature_importances_</code>.</p>
+  <p>Different libraries can calculate feature importance slightly differently; this is one common approach, not the only one.</p>
+
+  <div class="tabs widget" data-tabs>
+    <header><h4>How the importance chart is built</h4></header>
+    <div class="wbody">
+      <div role="tablist" aria-label="Importance steps">
+        <button role="tab" id="t-a1" aria-controls="p-a1" aria-selected="true">Read the scores</button>
+        <button role="tab" id="t-a2" aria-controls="p-a2" aria-selected="false" tabindex="-1">Order them</button>
+        <button role="tab" id="t-a3" aria-controls="p-a3" aria-selected="false" tabindex="-1">Plot and rank</button>
+      </div>
+      <div role="tabpanel" id="p-a1" aria-labelledby="t-a1">
+<pre class="code" style="margin-top:0">importances = tree_clf.feature_importances_</pre>
+        <p style="margin-top:12px">One score per feature: its information gain, weighted by how many datapoints reached the nodes that used it, summed across the tree and normalized.</p></div>
+      <div role="tabpanel" id="p-a2" aria-labelledby="t-a2" hidden>
+<pre class="code" style="margin-top:0">indices = np.argsort(importances)[::-1]
+names = [X_train.columns[i] for i in indices]</pre>
+        <p style="margin-top:12px"><code>argsort</code> gives positions from smallest to largest; reversing it puts the most important feature first, and the names follow the same order.</p></div>
+      <div role="tabpanel" id="p-a3" aria-labelledby="t-a3" hidden>
+<pre class="code" style="margin-top:0">plt.figure(figsize=(15, 6))
+plt.bar(range(X_train.shape[1]), importances[indices])
+plt.xticks(range(X_train.shape[1]), names, rotation=90)
+plt.title('Feature Importance')
+plt.tight_layout()
+plt.show()
+
+top10 = pd.Series(importances, index=X_train.columns).sort_values(ascending=False).head(10)
+top10</pre>
+        <p style="margin-top:12px">A bar chart of every feature, plus the ten leading features as numbers. Run these cells on your tuned tree to see the ranking.</p></div>
+    </div>
+  </div>
+
+  <div class="callout pink">
+    <strong class="t">Reading the result</strong>
+    <p>Look at which features dominate and whether they match the guesses you made in Class 3. Then separate the ones HR could realistically act on from the ones that are simply facts about a person. The tree is now tuned, its predictions are explainable through feature importance, and we understand what it does and does not need in terms of preprocessing. Time for the Product team’s question.</p>
+  </div>
+</section>
+
+<!-- ================= REGRESSION ================= -->
+<section id="regression">
+  <span class="mission">Mission 6, bonus</span>
+  <h2>Can a tree predict a number?</h2>
+  <p>The Product team wants to know if decision trees can also handle <strong>regression</strong>, where the target is continuous rather than a category (like a future delivery-time metric).</p>
+
+  <h3>The trouble with entropy and Gini here</h3>
+  <p>Both entropy and Gini impurity are built around class <strong>probabilities</strong>. A continuous target has no such thing. So a <code>DecisionTreeRegressor</code> needs two different ingredients:</p>
+  <div class="grid2">
+    <div class="tile blue"><h4>A different impurity</h4><p>It uses <strong>Mean Squared Error (MSE)</strong> instead of entropy or Gini.</p></div>
+    <div class="tile pink"><h4>A different leaf prediction</h4><p>It uses the <strong>mean</strong> of the target values in that leaf, instead of a majority vote.</p></div>
+  </div>
+
+  <h3>Meeting the regression data</h3>
+<pre class="code">regression_data = pd.read_csv(<span class="cmt">'regData.csv'</span>)
+
+X = regression_data[<span class="cmt">'X'</span>]
+y = regression_data[<span class="cmt">'Y'</span>]
+
+plt.figure(figsize=(12, 6))
+plt.scatter(X, y)
+plt.xlabel(<span class="cmt">'X'</span>)
+plt.ylabel(<span class="cmt">'Y'</span>)
+plt.title(<span class="cmt">'An operational factor (X) vs an outcome metric (Y)'</span>)
+plt.show()</pre>
+  <p>A simple linear regression line would fail on this data, exactly like Logistic Regression failed on our non-linear traffic tiers in Class 1. It is the same intuition, applied to a continuous target.</p>
+
+  <h3>How does the tree build itself for regression?</h3>
+  <p>The process mirrors classification exactly, with MSE in place of entropy and mean in place of majority vote.</p>
+  <ol class="take">
+    <li>Calculate the MSE at the current node, using the mean of the node’s target values as the prediction.</li>
+    <li>Try each feature and each candidate threshold, and compute the reduction in MSE each split would give.</li>
+    <li>Pick the split with the largest MSE reduction. This plays the same role as information gain.</li>
+    <li>Repeat on each child, until MSE is small enough or a stopping hyperparameter is hit.</li>
+  </ol>
+  <div data-quiz="q5"></div>
+
+  <h3>Choosing depth for the regression tree</h3>
+<pre class="code"><span class="kw">from</span> sklearn.tree <span class="kw">import</span> DecisionTreeRegressor
+
+depths = [1, 2, 3, 5, 6, 7, 9, 11]
+kfold = KFold(n_splits=3)
+
+<span class="kw">for</span> depth <span class="kw">in</span> depths:
+    tree_reg = DecisionTreeRegressor(random_state=7, max_depth=depth,
+                                      min_samples_split=10, min_samples_leaf=20)
+    cv_results = cross_validate(tree_reg, X_train_r, y_train_r, cv=kfold,
+                                 scoring=<span class="cmt">'neg_mean_squared_error'</span>, return_train_score=<span class="kw">True</span>)</pre>
+<pre class="out">depth= 1  train MSE=1.57  validation MSE=1.62
+depth= 2  train MSE=0.04  validation MSE=0.13
+depth= 3  train MSE=0.04  validation MSE=0.14
+depth= 5  train MSE=0.04  validation MSE=0.14
+depth= 6  train MSE=0.04  validation MSE=0.14
+depth= 7  train MSE=0.04  validation MSE=0.14
+depth= 9  train MSE=0.04  validation MSE=0.14
+depth=11  train MSE=0.04  validation MSE=0.14</pre>
+  <div class="widget">
+    <header><h4>Train versus validation MSE by depth</h4><p>Lower is better. Move the slider across the depths that were tried.</p></header>
+    <div class="wbody" id="cv2"></div>
+    <div class="wcap">The big improvement comes between depth 1 and depth 2. After that, validation MSE sits at about 0.13 to 0.14 while training MSE stays at 0.04, so extra depth buys nothing on unseen data. With only 600 datapoints, the gap between training and validation shows up quickly.</div>
+  </div>
+
+  <h3>A staircase, not a straight line</h3>
+<pre class="code">tree_reg = DecisionTreeRegressor(random_state=7, max_depth=2, min_samples_split=20)
+tree_reg.fit(X_train_r, y_train_r)
+
+X_grid = np.arange(X_train_r.min(), X_train_r.max(), 0.01).reshape(-1, 1)
+plt.plot(X_grid, tree_reg.predict(X_grid), color=<span class="cmt">'blue'</span>, linewidth=2, label=<span class="cmt">'Tree prediction'</span>)</pre>
+  <p>The prediction line looks like a <strong>staircase</strong>, flat within each leaf and jumping at each split threshold. This is a direct, visual consequence of how a tree predicts: every point in the same leaf gets the exact same predicted value, the mean of that leaf.</p>
+
+  <div class="widget">
+    <header><h4>Grow a regression tree and watch the staircase</h4><p>Same twelve-employee Age data as Mission 2, with the target treated as a number (1 = left, 0 = stayed) purely to show the mechanics. It is not the class’s own regression file.</p></header>
+    <div class="wbody">
+      <div class="ctrl"><label>max_depth <input type="range" id="rgDepth" min="0" max="6" step="1" value="2"></label></div>
+      <div class="svgwrap"><svg id="rgSvg" role="img" aria-label="Twelve employees by age with a staircase-shaped regression tree prediction"></svg></div>
+      <div class="legend"><span><i class="sw-l"></i>Left (1)</span><span><i class="sw-s"></i>Stayed (0)</span><span>Dark line: tree prediction, the mean of each leaf.</span></div>
+      <div class="readout" id="rgOut" aria-live="polite"></div>
+    </div>
+    <div class="wcap">Increasing the depth does not smooth the line. It adds more, smaller steps, because each leaf still predicts one constant value.</div>
+  </div>
+</section>
+
+<!-- ================= EXPLORE ================= -->
+<section id="explore">
+  <h2>Explore further</h2>
+  <p>Each idea works best if you write your guess first, then check it against what you find.</p>
+  <div class="grid2">
+    <div class="tile blue">
+      <h4>GridSearchCV instead of a manual loop</h4>
+      <p>Our loop tunes only <code>max_depth</code>. What if the best combination needs <code>max_depth</code> and <code>min_samples_leaf</code> tuned together? Run the code you get on <code>X_train, y_train</code> and see whether it beats the single-hyperparameter search.</p>
+      <div class="prompt" id="pr1">Show me how to use scikit-learn's GridSearchCV to tune both max_depth and min_samples_leaf for a DecisionTreeClassifier together, using 10-fold cross-validation.</div>
+      <button class="btn alt copyb" type="button" data-copy="pr1">Copy prompt</button>
+    </div>
+    <div class="tile pink">
+      <h4>What a false negative costs HR</h4>
+      <p>Is a false negative worse for HR than a false positive? Then look at the false negative count in your matrix: would you push the model toward catching more true attritions, even at the cost of a few more false alarms?</p>
+      <div class="prompt" id="pr2">In an employee attrition model, what business actions typically follow a 'predicted to leave' flag, and what does it cost the company if that flag is wrong compared to a missed departure?</div>
+      <button class="btn alt copyb" type="button" data-copy="pr2">Copy prompt</button>
+    </div>
+    <div class="tile pink">
+      <h4>Target encoding in practice</h4>
+      <p>For a Zipcode-like feature, what number would you assign to each zipcode? Check the explanation against the definition above, and note one risk to watch for. Hint: search for “target leakage”.</p>
+      <div class="prompt" id="pr3">Explain target encoding for a high-cardinality categorical feature in a classification problem, with a small worked example.</div>
+      <button class="btn alt copyb" type="button" data-copy="pr3">Copy prompt</button>
+    </div>
+    <div class="tile blue">
+      <h4>Deeper staircase, more steps</h4>
+      <p>Would a deeper staircase get smoother, or just gain more steps? Rerun the plotting code with <code>max_depth=6</code> instead of 2, or drag the depth slider above.</p>
+      <div class="prompt" id="pr4">Why does a decision tree regressor always produce a piecewise-constant, staircase-shaped prediction, no matter how deep the tree grows?</div>
+      <button class="btn alt copyb" type="button" data-copy="pr4">Copy prompt</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WRAP ================= -->
+<section id="wrap">
+  <h2>Wrap up</h2>
+  <ol class="take">
+    <li>Gini impurity measures the same thing as entropy but skips the logarithm, which is why it is scikit-learn’s default and usually just as good.</li>
+    <li>For a numerical feature, a tree searches candidate thresholds and picks the one with the highest information gain; binning trades some precision for much lower search cost.</li>
+    <li>Deeper trees overfit because leaves end up with very few points, some of which are just noise; shallower trees underfit because classes stay mixed together. Pruning means stopping a tree before it grows all the way to pure leaves.</li>
+    <li><code>max_depth</code>, <code>min_samples_split</code>, <code>min_samples_leaf</code>, <code>max_leaf_nodes</code>, <code>max_features</code> and <code>class_weight</code> are the main levers for controlling tree growth, and depth should be chosen using cross-validation, not a single guess.</li>
+    <li>A tree does not need scaled features, since splits only depend on the order of values, not their magnitude.</li>
+    <li>High-cardinality categorical features are better target-encoded than one-hot encoded, and very high-dimensional data slows down tree building, since every feature is checked at every split.</li>
+    <li>Imbalanced data can bias a tree toward the majority class, which is exactly why we balanced our training set with SMOTE.</li>
+    <li><code>feature_importances_</code> is based on normalized information gain, contributed and weighted across every split where a feature was used.</li>
+    <li>For regression, a decision tree replaces entropy and Gini with MSE, and replaces the majority vote with the mean of a leaf’s target values, producing a staircase-shaped prediction.</li>
+  </ol>
+  <div class="ticket">
+    <div class="from">Ticket #4 closed: your reply to the Head of HR and the Product team</div>
+    <q>“The tree is now tuned with cross-validation, its leaves are no longer all pure, and we can point to exactly which features drive its predictions. And yes, the same tree idea works for numeric targets too, using mean squared error and leaf averages instead of impurity and voting.”</q>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer><strong>Decision Trees 2 post read</strong></footer>
+
+<script>
+(function(){
+'use strict';
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs){e.setAttribute(k,attrs[k]);}if(parent)parent.appendChild(e);return e;}
+function H(p){return (p<=0||p>=1)?0:-p*Math.log2(p)-(1-p)*Math.log2(1-p);}
+function Hc(a,b){var n=a+b;return n?H(a/n):0;}
+function fmt(x,d){d=d==null?3:d;return (Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toFixed(d);}
+
+/* progress + toc */
+var prog=$('#progress');
+function onScroll(){var h=document.documentElement;var m=h.scrollHeight-h.clientHeight;prog.style.width=(m>0?h.scrollTop/m*100:0)+'%';}
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+if('IntersectionObserver' in window){
+  var links=$$('.toc a');
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
+  $$('main section').forEach(function(s){io.observe(s);});
+}
+
+/* tabs */
+$$('[data-tabs]').forEach(function(root){
+  var tabs=$$('[role=tab]',root);
+  function sel(t){tabs.forEach(function(x){var on=x===t;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1;var p=document.getElementById(x.getAttribute('aria-controls'));if(p)p.hidden=!on;});}
+  tabs.forEach(function(t,i){
+    t.addEventListener('click',function(){sel(t);});
+    t.addEventListener('keydown',function(e){var j=-1;if(e.key==='ArrowRight')j=(i+1)%tabs.length;if(e.key==='ArrowLeft')j=(i-1+tabs.length)%tabs.length;if(j>=0){e.preventDefault();sel(tabs[j]);tabs[j].focus();}});
+  });
+});
+
+/* generic line chart */
+function lineChart(svg,o){
+  var W=o.W||620,HH=o.H||320,m={l:58,r:24,t:38,b:52};
+  svg.setAttribute('viewBox','0 0 '+W+' '+HH);
+  while(svg.firstChild)svg.removeChild(svg.firstChild);
+  var X=function(v){return m.l+(v-o.xmin)/(o.xmax-o.xmin)*(W-m.l-m.r);};
+  var Y=function(v){return m.t+(1-(v-o.ymin)/(o.ymax-o.ymin))*(HH-m.t-m.b);};
+  el('rect',{x:m.l,y:m.t,width:W-m.l-m.r,height:HH-m.t-m.b,fill:'#FAFBFF',stroke:'#D6DEF2'},svg);
+  (o.yticks||[]).forEach(function(v){el('line',{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),stroke:'#E4EBFB'},svg);var t=el('text',{x:m.l-8,y:Y(v)+4,'text-anchor':'end','font-size':12,fill:'#4A5580'},svg);t.textContent=o.yfmt?o.yfmt(v):v;});
+  (o.xticks||[]).forEach(function(v){el('line',{x1:X(v),x2:X(v),y1:m.t,y2:HH-m.b,stroke:'#E4EBFB'},svg);var t=el('text',{x:X(v),y:HH-m.b+18,'text-anchor':'middle','font-size':12,fill:'#4A5580'},svg);t.textContent=o.xfmt?o.xfmt(v):v;});
+  var xl=el('text',{x:(m.l+W-m.r)/2,y:HH-8,'text-anchor':'middle','font-size':13,'font-weight':700,fill:'#101A3F'},svg);xl.textContent=o.xLabel||'';
+  var yl=el('text',{x:14,y:(m.t+HH-m.b)/2,'text-anchor':'middle','font-size':13,'font-weight':700,fill:'#101A3F',transform:'rotate(-90 14 '+((m.t+HH-m.b)/2)+')'},svg);yl.textContent=o.yLabel||'';
+  var hl=el('line',{y1:m.t,y2:HH-m.b,stroke:'#101A3F','stroke-width':2,'stroke-dasharray':'5 4',visibility:'hidden'},svg);
+  o.series.forEach(function(s,si){
+    if(!s.noLine){var d='';s.xs.forEach(function(x,i){d+=(i?'L':'M')+X(x)+' '+Y(s.ys[i]);});el('path',{d:d,fill:'none',stroke:s.color,'stroke-width':s.w||3.5,'stroke-dasharray':s.dash||'','stroke-linejoin':'round'},svg);}
+    if(!s.noMark)s.xs.forEach(function(x,i){
+      var cx=X(x),cy=Y(s.ys[i]),g=el('g',{},svg),sh;
+      if(s.shape==='d')sh=el('path',{d:'M'+cx+' '+(cy-9)+'L'+(cx+9)+' '+cy+'L'+cx+' '+(cy+9)+'L'+(cx-9)+' '+cy+'Z',fill:s.color,stroke:'#fff','stroke-width':1.5},g);
+      else sh=el('circle',{cx:cx,cy:cy,r:s.r||6,fill:s.color,stroke:'#fff','stroke-width':1.5},g);
+      var ti=el('title',{},g);ti.textContent=(s.name||'')+': '+(s.tip?s.tip(i):fmt(s.ys[i]));
+    });
+    if(s.ring!=null){el('circle',{cx:X(s.xs[s.ring]),cy:Y(s.ys[s.ring]),r:13,fill:'none',stroke:'#101A3F','stroke-width':2.5},svg);}
+  });
+  var lx=m.l+6;
+  o.series.forEach(function(s){if(!s.name||s.hideLegend)return;el('line',{x1:lx,x2:lx+22,y1:20,y2:20,stroke:s.color,'stroke-width':4,'stroke-dasharray':s.dash||''},svg);var t=el('text',{x:lx+28,y:24,'font-size':13,'font-weight':700,fill:'#101A3F'},svg);t.textContent=s.name;lx+=28+s.name.length*8+22;});
+  return {X:X,Y:Y,select:function(xv){hl.setAttribute('x1',X(xv));hl.setAttribute('x2',X(xv));hl.setAttribute('visibility','visible');}};
+}
+
+/* Mission 1: impurity lab */
+(function(){
+  var root=$('#lab'),W=560,HH=300,m={l:54,r:20,t:18,b:48};
+  root.innerHTML='<div class="svgwrap"><svg id="labSvg" role="img" aria-label="Entropy and Gini impurity curves against the proportion of class 1"></svg></div><div class="ctrl"><label>P(class = 1) <input type="range" id="labR" min="0" max="100" step="1" value="30"></label></div><div class="readout" id="labO" aria-live="polite"></div>';
+  var svg=$('#labSvg');svg.setAttribute('viewBox','0 0 '+W+' '+HH);
+  var X=function(p){return m.l+p*(W-m.l-m.r);},Y=function(v){return m.t+(1-v)*(HH-m.t-m.b);};
+  el('rect',{x:m.l,y:m.t,width:W-m.l-m.r,height:HH-m.t-m.b,fill:'#FAFBFF',stroke:'#D6DEF2'},svg);
+  [0,.25,.5,.75,1].forEach(function(v){el('line',{x1:X(v),x2:X(v),y1:Y(0),y2:Y(1),stroke:'#E4EBFB'},svg);var t=el('text',{x:X(v),y:HH-28,'text-anchor':'middle','font-size':12,fill:'#4A5580'},svg);t.textContent=v;el('line',{x1:X(0),x2:X(1),y1:Y(v),y2:Y(v),stroke:'#E4EBFB'},svg);var u=el('text',{x:m.l-8,y:Y(v)+4,'text-anchor':'end','font-size':12,fill:'#4A5580'},svg);u.textContent=v;});
+  el('line',{x1:X(.5),x2:X(.5),y1:Y(0),y2:Y(1),stroke:'#7E92CF','stroke-dasharray':'5 5'},svg);
+  var xl=el('text',{x:(m.l+W-m.r)/2,y:HH-8,'text-anchor':'middle','font-size':13,'font-weight':700,fill:'#101A3F'},svg);xl.textContent='P(class = 1)';
+  var yl=el('text',{x:14,y:(m.t+HH-m.b)/2,'text-anchor':'middle','font-size':13,'font-weight':700,fill:'#101A3F',transform:'rotate(-90 14 '+((m.t+HH-m.b)/2)+')'},svg);yl.textContent='Impurity';
+  function path(f){var d='';for(var i=0;i<=100;i++){var p=i/100;d+=(i?'L':'M')+X(p)+' '+Y(f(p));}return d;}
+  var G=function(p){return 1-p*p-(1-p)*(1-p);};
+  el('path',{d:path(H),fill:'none',stroke:'#254AA5','stroke-width':4},svg);
+  el('path',{d:path(G),fill:'none',stroke:'#EA1A85','stroke-width':4,'stroke-dasharray':'9 6'},svg);
+  var le=el('text',{x:X(.06),y:Y(.62),'font-size':14,'font-weight':800,fill:'#254AA5'},svg);le.textContent='Entropy';
+  var lg=el('text',{x:X(.78),y:Y(.36),'font-size':14,'font-weight':800,fill:'#B0105F'},svg);lg.textContent='Gini impurity';
+  var mm=el('text',{x:X(.5),y:Y(1)-4,'text-anchor':'middle','font-size':12,'font-weight':700,fill:'#1B3A8C'},svg);mm.textContent='maximum impurity';
+  var mk=el('circle',{r:9,fill:'#254AA5',stroke:'#101A3F','stroke-width':3},svg);
+  var mg=el('path',{fill:'#EA1A85',stroke:'#101A3F','stroke-width':2.5},svg);
+  var R=$('#labR'),O=$('#labO');
+  function up(){
+    var p=+R.value/100,e=H(p),g=G(p);
+    mk.setAttribute('cx',X(p));mk.setAttribute('cy',Y(e));
+    var cx=X(p),cy=Y(g);mg.setAttribute('d','M'+cx+' '+(cy-11)+'L'+(cx+11)+' '+cy+'L'+cx+' '+(cy+11)+'L'+(cx-11)+' '+cy+'Z');
+    var note=(p===0||p===1)?'Pure node: all observations belong to one class.':Math.abs(p-.5)<.001?'Maximum impurity: the two classes are evenly mixed.':p<.5?'Class 0 is dominant, but some class 1 observations are present.':'Class 1 is dominant, but some class 0 observations are present.';
+    O.innerHTML='p = '+fmt(p,2)+' &nbsp;|&nbsp; Entropy = <span class="pk">'+fmt(e)+'</span> &nbsp;|&nbsp; Gini = <span class="pk">'+fmt(g)+'</span><br><span style="font-weight:500">'+note+'</span>';
+  }
+  R.addEventListener('input',up);up();
+})();
+
+/* Gini calculator */
+(function(){
+  var A=$('#gA'),B=$('#gB'),O=$('#gcOut');
+  function up(){
+    var a=Math.max(0,Math.floor(+A.value||0)),b=Math.max(0,Math.floor(+B.value||0)),n=a+b;
+    if(!n){O.textContent='Enter at least one observation.';return;}
+    var p=a/n,g=1-p*p-(1-p)*(1-p);
+    O.innerHTML='p = '+a+'/'+n+' = '+fmt(p,2)+'. Gini = 1 − '+fmt(p*p)+' − '+fmt((1-p)*(1-p))+' = <span class="pk">'+fmt(g)+'</span>. Entropy for comparison: '+fmt(H(p))+'.';
+  }
+  A.addEventListener('input',up);B.addEventListener('input',up);up();
+})();
+
+/* Mission 2: threshold search */
+(function(){
+  var AGE=[22,23,24,25,27,30,33,36,40,44,48,52],Y=[1,1,1,0,1,0,0,0,1,0,0,0],N=12;
+  var mean=AGE.reduce(function(a,b){return a+b;},0)/N,sd=Math.sqrt(AGE.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/N);
+  var parentL=Y.reduce(function(a,b){return a+b;},0),hp=Hc(parentL,N-parentL);
+  function gainK(k){var lL=0,i;for(i=0;i<k;i++)lL+=Y[i];var rL=parentL-lL;return hp-(k/N)*Hc(lL,k-lL)-((N-k)/N)*Hc(rL,N-k-rL);}
+  var ALL=[],BIN=[];
+  for(var i=1;i<N;i++)ALL.push({k:i,t:(AGE[i-1]+AGE[i])/2});
+  [30,40,50].forEach(function(b){var k=AGE.filter(function(a){return a<b;}).length;BIN.push({k:k,t:b});});
+  ALL.concat(BIN).forEach(function(c){c.g=gainK(c.k);});
+  var mode='all',scale='raw',cur=0;
+  var sl=$('#thSlide'),out=$('#thOut'),chips=$('#thChips'),cap=$('#thCap');
+  function list(){return mode==='all'?ALL:BIN;}
+  function disp(v){return scale==='raw'?v:(v-mean)/sd;}
+  function best(l){return l.reduce(function(a,c){return c.g>a.g+1e-12?c:a;},l[0]);}
+  function render(){
+    var l=list(),c=l[cur],b=best(l),full=best(ALL);
+    sl.max=l.length-1;sl.value=cur;
+    chips.innerHTML='';
+    AGE.forEach(function(a,i){
+      if(i===c.k){var d=document.createElement('span');d.className='cut';chips.appendChild(d);}
+      var s=document.createElement('span');s.className='chip'+(Y[i]?' l':'');s.textContent=(Y[i]?'◆ ':'● ')+fmt(disp(a),scale==='raw'?0:2);s.title=Y[i]?'Left':'Stayed';chips.appendChild(s);
+    });
+    var lL=0;for(var j=0;j<c.k;j++)lL+=Y[j];var rL=parentL-lL;
+    out.innerHTML='Age &lt; '+fmt(disp(c.t),scale==='raw'?1:3)+': left branch '+c.k+' employees ('+lL+' left), right branch '+(N-c.k)+' employees ('+rL+' left). Information gain = <span class="pk">'+fmt(c.g)+'</span>'+(c===b?' (best among these candidates)':'')+'.';
+    var xs=l.map(function(q){return disp(q.t);}),ys=l.map(function(q){return q.g;});
+    var xmin=Math.min.apply(null,ALL.map(function(q){return disp(q.t);})),xmax=Math.max.apply(null,ALL.map(function(q){return disp(q.t);}));
+    var pad=(xmax-xmin)*.06,ticks=[];
+    if(scale==='raw'){for(var v=25;v<=50;v+=5)ticks.push(v);}else{ticks=[-1.5,-1,-.5,0,.5,1,1.5];}
+    var ch=lineChart($('#thSvg'),{xmin:xmin-pad,xmax:xmax+pad,ymin:0,ymax:.4,yticks:[0,.1,.2,.3,.4],xticks:ticks,xfmt:function(v){return scale==='raw'?v:fmt(v,1);},xLabel:scale==='raw'?'Candidate Age threshold (years)':'Candidate threshold (standardised Age)',yLabel:'Information gain',
+      series:[{name:'Information gain',xs:xs,ys:ys,color:'#254AA5',ring:l.indexOf(b),tip:function(i){return 'threshold '+fmt(xs[i],2)+', gain '+fmt(ys[i]);}}]});
+    ch.select(disp(c.t));
+    cap.innerHTML=(mode==='all'?'Testing every midpoint means <strong>11 candidates</strong>, each needing its own entropy calculations. ':'Testing only the bin edges means <strong>3 candidates</strong> (Age 30, 40 and 50). ')+
+      'Best gain among the tested candidates: <strong>'+fmt(b.g)+'</strong>'+(mode==='bin'?', versus <strong>'+fmt(full.g)+'</strong> when every midpoint is tested. That difference is the precision given up for the cheaper search.':'.')+
+      (scale==='std'?' The values changed but the sorted order, and every gain, is exactly the same as on the raw scale.':'');
+  }
+  sl.addEventListener('input',function(){cur=+sl.value;render();});
+  function seg(a,b,on){a.setAttribute('aria-pressed',on);b.setAttribute('aria-pressed',!on);}
+  $('#mAll').addEventListener('click',function(){mode='all';seg($('#mAll'),$('#mBin'),true);cur=ALL.indexOf(best(ALL));render();});
+  $('#mBin').addEventListener('click',function(){mode='bin';seg($('#mBin'),$('#mAll'),true);cur=BIN.indexOf(best(BIN));render();});
+  $('#sRaw').addEventListener('click',function(){scale='raw';seg($('#sRaw'),$('#sStd'),true);render();});
+  $('#sStd').addEventListener('click',function(){scale='std';seg($('#sStd'),$('#sRaw'),true);render();});
+  cur=ALL.indexOf(best(ALL));render();
+})();
+
+/* k-fold */
+(function(){
+  var box=$('#folds'),S=$('#foldSlide'),O=$('#foldOut');
+  for(var r=1;r<=10;r++){var row=document.createElement('div');row.className='frow';row.innerHTML='<span>Round '+r+'</span>';for(var f=1;f<=10;f++){row.innerHTML+='<span class="c'+(f===r?' v':'')+'" title="Fold '+f+'"></span>';}box.appendChild(row);}
+  function up(){var r=+S.value;$$('.frow',box).forEach(function(x,i){x.classList.toggle('on',i===r-1);});O.textContent='Round '+r+': train on the other 9 folds, validate on fold '+r+'. Then repeat for every fold and average the results.';}
+  S.addEventListener('input',up);up();
+})();
+
+/* CV widgets */
+function cvWidget(root,o){
+  var id=root.id;
+  var tbl='<div class="tblwrap"><table><caption class="sr-only">'+o.cap+'</caption><thead><tr><th>max_depth</th><th>Train</th><th>Validation</th></tr></thead><tbody>'+o.depths.map(function(d,i){return '<tr><td>'+d+'</td><td>'+fmt(o.train[i],o.dec)+'</td><td>'+fmt(o.val[i],o.dec)+'</td></tr>';}).join('')+'</tbody></table></div>';
+  root.innerHTML='<div class="svgwrap"><svg id="'+id+'S" role="img" aria-label="'+o.cap+'"></svg></div><div class="ctrl"><label>max_depth index <input type="range" id="'+id+'R" min="0" max="'+(o.depths.length-1)+'" step="1" value="'+o.start+'"></label></div><div class="readout" id="'+id+'O" aria-live="polite"></div><details><summary>Show the numbers as a table</summary><div class="dbody">'+tbl+'</div></details>';
+  var R=$('#'+id+'R'),O=$('#'+id+'O');
+  var bi=0;o.val.forEach(function(v,i){if(o.best==='max'?v>o.val[bi]:v<o.val[bi])bi=i;});
+  function up(){
+    var i=+R.value;
+    var ch=lineChart($('#'+id+'S'),{xmin:o.xmin,xmax:o.xmax,ymin:o.ymin,ymax:o.ymax,yticks:o.yticks,xticks:o.depths,xLabel:'max_depth',yLabel:o.yLabel,
+      series:[{name:'Train',xs:o.depths,ys:o.train,color:'#254AA5'},{name:'Validation',xs:o.depths,ys:o.val,color:'#EA1A85',shape:'d',dash:'10 6',ring:o.best==='max'?bi:null}]});
+    ch.select(o.depths[i]);
+    var gap=o.best==='max'?o.train[i]-o.val[i]:o.val[i]-o.train[i];
+    O.innerHTML='max_depth = '+o.depths[i]+': train '+o.metric+' <span class="pk">'+fmt(o.train[i],o.dec)+'</span>, validation <span class="pk">'+fmt(o.val[i],o.dec)+'</span>. Gap between them: '+fmt(Math.abs(gap),o.dec)+'.'+(i===bi&&o.best==='max'?' Highest validation accuracy.':'');
+  }
+  R.addEventListener('input',up);up();
+}
+cvWidget($('#cv1'),{depths:[3,4,5,6,9,11,13,15],train:[.784,.832,.873,.904,.975,.993,.999,1],val:[.765,.802,.829,.844,.843,.835,.831,.832],xmin:2,xmax:16,ymin:.7,ymax:1.02,yticks:[.7,.8,.9,1],yLabel:'Accuracy',metric:'accuracy',dec:3,best:'max',start:3,cap:'Mean train and validation accuracy for each max_depth from cross-validation'});
+cvWidget($('#cv2'),{depths:[1,2,3,5,6,7,9,11],train:[1.57,.04,.04,.04,.04,.04,.04,.04],val:[1.62,.13,.14,.14,.14,.14,.14,.14],xmin:0,xmax:12,ymin:0,ymax:1.8,yticks:[0,.5,1,1.5],yLabel:'MSE',metric:'MSE',dec:2,best:'min',start:1,cap:'Mean train and validation MSE for each max_depth of the regression tree'});
+
+/* confusion matrix */
+(function(){
+  var D={tn:'True negative: the employee stayed and the model predicted stay. A correct call.',fp:'False positive: the employee stayed but the model flagged them as leaving. A false alarm.',fn:'False negative: the employee actually left, but the model predicted stay. A departure HR did not see coming, and the cell to watch for business cost.',tp:'True positive: the employee left and the model predicted leave. A correct catch.'};
+  var bs=$$('[data-cm]'),O=$('#cmOut');
+  function sel(k){bs.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.cm===k);});O.textContent=D[k];}
+  bs.forEach(function(b){b.addEventListener('click',function(){sel(b.dataset.cm);});});sel('tn');
+})();
+
+/* regression staircase */
+(function(){
+  var AGE=[22,23,24,25,27,30,33,36,40,44,48,52],Yv=[1,1,1,0,1,0,0,0,1,0,0,0];
+  var pts=AGE.map(function(a,i){return {x:a,y:Yv[i]};});
+  function stats(p){var n=p.length,m=p.reduce(function(a,q){return a+q.y;},0)/n,v=p.reduce(function(a,q){return a+(q.y-m)*(q.y-m);},0)/n;return {n:n,m:m,v:v};}
+  function build(p,d,maxD,lo,hi,out,depthInfo){
+    var s=stats(p),node={n:s.n,mean:s.m,mse:s.v};
+    var best=null;
+    if(d<maxD&&s.v>1e-12&&p.length>1){
+      for(var i=1;i<p.length;i++){if(p[i].x===p[i-1].x)continue;var L=stats(p.slice(0,i)),R=stats(p.slice(i)),w=(i/p.length)*L.v+((p.length-i)/p.length)*R.v,red=s.v-w;if(!best||red>best.red+1e-12)best={i:i,t:(p[i-1].x+p[i].x)/2,red:red,w:w};}
+    }
+    if(!best||best.red<=1e-12){out.push({lo:lo,hi:hi,mean:s.m,n:s.n,mse:s.v});return;}
+    if(d===0)depthInfo.root={t:best.t,before:s.v,after:best.w};
+    build(p.slice(0,best.i),d+1,maxD,lo,best.t,out,depthInfo);
+    build(p.slice(best.i),d+1,maxD,best.t,hi,out,depthInfo);
+  }
+  var sl=$('#rgDepth'),O=$('#rgOut'),svg=$('#rgSvg');
+  function up(){
+    var D=+sl.value,leaves=[],info={};
+    build(pts,0,D,18,56,leaves,info);
+    var xs=[],ys=[];leaves.forEach(function(l){xs.push(l.lo,l.hi);ys.push(l.mean,l.mean);});
+    var tot=leaves.reduce(function(a,l){return a+l.n*l.mse;},0)/12;
+    lineChart(svg,{xmin:18,xmax:56,ymin:-.15,ymax:1.15,yticks:[0,.5,1],xticks:[20,30,40,50],xLabel:'Age',yLabel:'Target (1 = left)',
+      series:[{name:'Tree prediction',xs:xs,ys:ys,color:'#0A1747',noMark:true,w:4},
+              {name:'',xs:pts.filter(function(p){return p.y===1;}).map(function(p){return p.x;}),ys:pts.filter(function(p){return p.y===1;}).map(function(){return 1;}),color:'#EA1A85',shape:'d',noLine:true,hideLegend:true},
+              {name:'',xs:pts.filter(function(p){return p.y===0;}).map(function(p){return p.x;}),ys:pts.filter(function(p){return p.y===0;}).map(function(){return 0;}),color:'#254AA5',noLine:true,hideLegend:true,r:8}]});
+    O.innerHTML='max_depth = '+D+': <span class="pk">'+leaves.length+(leaves.length>1?' leaves':' leaf')+'</span>, training MSE <span class="pk">'+fmt(tot)+'</span>.'+(info.root?' First split at Age &lt; '+info.root.t+' lowers MSE from '+fmt(info.root.before)+' to '+fmt(info.root.after)+'.':' No split yet: one leaf predicts the overall mean ('+fmt(leaves[0].mean)+') for everyone.');
+  }
+  sl.addEventListener('input',up);up();
+})();
+
+/* quizzes */
+var QUIZ={
+  q1:{q:'A decision tree uses Gini impurity as the splitting criterion. A node has 60 instances of class A and 40 of class B. What is the Gini impurity at that node?',c:['0.24','0.4','0.6','0.48'],a:3,e:'Gini = 1 − (0.6)² − (0.4)² = 1 − 0.36 − 0.16 = 0.48.'},
+  q2:{q:'What is pruning in decision trees?',c:['The process of removing outliers','The process of handling missing values','The process of removing unnecessary branches','The process of transforming categorical variables'],a:2,e:'Pruning limits how much a tree is allowed to grow (or trims it back after growing), removing branches that only capture noise rather than genuine patterns, to control overfitting.'},
+  q3:{q:'How will the performance of a decision tree be affected if we increase the maximum number of leaf nodes it is allowed to have?',c:['The model will underfit','The model will always be optimized','The model will tend to overfit','It cannot be determined'],a:2,e:'More leaf nodes means more splits, and more splits means the tree can carve out smaller and smaller regions, eventually fitting noise. This is the same overfitting risk as an unlimited max_depth.'},
+  q4:{q:'Which of the following decision trees will be more affected by a single outlier in the training data?',c:['A tree with max_depth=50','A tree with max_depth=5','Both equally','Neither'],a:0,e:'A very deep tree can keep splitting until it isolates a single unusual point into its own leaf, so that one outlier directly shapes part of the tree. A shallow tree, restricted to only 5 levels, cannot afford to build a branch around a single point and is far less sensitive to it.'},
+  q5:{q:'How does a decision tree calculate its predicted value at a node, for a regression problem?',c:['Majority vote among the target values','The mean of all target values present at that node','A randomly selected target value from the node','The median of the feature values at that node'],a:1,e:'For regression, a leaf’s prediction is the mean of the target values that landed in it. This mean is also exactly what MSE is calculated against when the tree looks for the best split.'}
+};
+$$('[data-quiz]').forEach(function(box){
+  var d=QUIZ[box.dataset.quiz],name='quiz-'+box.dataset.quiz,L='ABCD';
+  var h='<div class="quiz"><span class="qtag">Check your understanding</span><fieldset><legend>'+d.q+'</legend>';
+  d.c.forEach(function(c,i){h+='<label class="opt"><input type="radio" name="'+name+'" value="'+i+'"><span><strong>'+L[i]+'.</strong> '+c+'</span></label>';});
+  h+='</fieldset><div class="btnrow"><button class="btn" type="button">Check answer</button></div><div class="fb" aria-live="polite"></div></div>';
+  box.innerHTML=h;
+  var btn=$('button',box),fb=$('.fb',box),opts=$$('.opt',box);
+  btn.addEventListener('click',function(){
+    var ch=$('input:checked',box);
+    opts.forEach(function(o){o.classList.remove('ok','no');});
+    if(!ch){fb.className='fb';fb.textContent='Select an answer first.';return;}
+    var v=+ch.value;opts[d.a].classList.add('ok');
+    if(v===d.a){fb.className='fb ok';fb.innerHTML='<strong>Correct: '+L[d.a]+'.</strong> '+d.e;}
+    else{opts[v].classList.add('no');fb.className='fb no';fb.innerHTML='<strong>Not quite.</strong> You chose '+L[v]+'; the correct answer is <strong>'+L[d.a]+'</strong>. '+d.e;}
+  });
+});
+
+/* copy prompts */
+$$('[data-copy]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var txt=document.getElementById(b.dataset.copy).textContent,old=b.textContent;
+    function done(){b.textContent='Copied';setTimeout(function(){b.textContent=old;},1600);}
+    function fallback(){var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){b.textContent='Select the prompt and copy';}document.body.removeChild(ta);}
+    try{navigator.clipboard.writeText(txt).then(done,fallback);}catch(e){fallback();}
+  });
+});
+})();
+</script>
+</body>
+</html>
